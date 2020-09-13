@@ -47,6 +47,14 @@ with open('user.json','w') as file:
          json.dump(dict, file, sort_keys=True, indent=4)
 
 
+
+POST a file:
+files = {'upload_file': open('file.txt','rb')}
+values = {'DB': 'photcat', 'OUT': 'csv', 'SHORT': 'short'}
+
+r = requests.post(url, files=files, data=values)
+
+
 """
 
 from sys import argv
@@ -58,6 +66,8 @@ import pdb
 import json
 
 api_base = "https://@www.nutritics.com/api/v1.1/"
+username = "iancoleman1a"
+password = ""
 
 def get_req(payload = {}):
 	base = api_base + "get"
@@ -81,12 +91,17 @@ def put_req(payload = {}):
 	response = requests.put(base, data=payload)
 	return response
 
-def robust_get_req (payload = {}):
-	""" Robustly perform GET request on API 
+def request_foundation (req_type, payload = {}):
+	""" INPUT: request type string, payload dict
+		Robustly perform GET request on API 
 		Checking for http and response-type errors"""
-	base = api_base + "get"
+	base = api_base + req_type
 	try:
-	    response = requests.get(base, params=payload, auth=(username, password))
+		if req_type == "LIST/":
+	    	response = requests.get(base, params=payload, auth=(username, password))
+	   	elif "CREATE" in req_type:
+	   		## NOT WORKING at least for nutritics -> internal server error
+	   		response = requests.post(base, data=payload, auth=(username, password))
 	    response.raise_for_status()
 	except requests.exceptions.HTTPError as errh:
 	    print(errh)
@@ -101,27 +116,18 @@ def robust_get_req (payload = {}):
 	return response
 
 def get_nutritics_objects (payload = {}):
-	""" Robustly perform GET request on API 
-		Checking for http and response-type errors"""
-	base = api_base + "LIST/"
-	try:
-	    response = requests.get(base, params=payload, auth=(username, password))
-	    response.raise_for_status()
-	except requests.exceptions.HTTPError as errh:
-	    print(errh)
-	except requests.exceptions.ConnectionError as errc:
-	    print(errc)
-	except requests.exceptions.Timeout as errt:
-	    print(errt)
-	except requests.exceptions.RequestException as err:
-	    print(err)
-	assert 'json' in response.headers['Content-Type'], "Response isn't json!"
-
+	response = request_foundation('LIST/', payload)
 	return response
-	
+
+def post_nutritics_object (object_type, payload = {}):
+	response = request_foundation('CREATE/' + object_type, payload)
+	return response 
+
 
 if __name__ == "__main__":
-	response = get_nutritics_objects({'food': 'banana'})
-	# print(response.json())
-	pdb.set_trace()
+	response = get_nutritics_objects({'client': ''})
+	print(response.json())
+	# pdb.set_trace()
 	# print(response.text)
+
+	john = {"dob": "2000-10-16", "gender": "m", "height": 1.70, "weight": 70}
