@@ -58,35 +58,41 @@ def split_partners_into_countries (full_data):
 	return countries
 
 
-def find_consensus_dates (country):
+def extract_candidate_dates (country):
 	""" Input: list of dicts - the output from split_partners_into_countries
-	Output: dict, all required info for the given country
+	Output: list of dicts, like input but with ['candidateDates']
 	"""
-	
-	# extract workable dates for each client
 	for client in country:
-		client['candidateDate'] = []
+		client['candidateDates'] = []
 		dates = [dateutil.parser.parse(x) for x in client['availableDates']]
 		dates = sorted(dates)
 		for i in range(0, len(dates) - 1):
 			if dates[i] + timedelta(days=1) == dates[i + 1]:
-				client['candidateDate'].append(dates[i])
-	
-	# Find consensus dates for all clients of this country
-	all_candidates = [[x for x in client['candidateDate']] for client in country]
-	all_candidates = [item for sublist in all_candidates for item in sublist]
-	all_candidates = sorted([my_date.strftime('%Y-%m-%d') for my_date in all_candidates])
-	all_candidates = set(all_candidates)
-	candidate_guestlist = {x:[] for x in all_candidates}
+				client['candidateDates'].append(dates[i])
+	return country
+
+
+def find_consensus_dates (country):
+	""" Input: list of dicts - the output from extract_candidate_dates 
+	Output: dict, all required output info for this country 
+	"""
+	# Make a sorted list of all possible dates in string format
+	candidates = [[x for x in client['candidateDates']] for client in country]
+	candidates = [item for sublist in candidates for item in sublist]
+	candidates = set(candidates)
+	candidates = sorted(candidates) # note this turns set into list
+	candidates = [my_date.strftime('%Y-%m-%d') for my_date in candidates]
+	# candidates = set(candidates)
+	candidate_guestlist = {x:[] for x in candidates}
 	for client in country:
-		for date in all_candidates:
-			client_slots = [my_date.strftime('%Y-%m-%d') for my_date in client['candidateDate']]
+		for date in candidates:
+			client_slots = [my_date.strftime('%Y-%m-%d') for my_date in client['candidateDates']]
 			if date in client_slots:
 				candidate_guestlist[date].append(client['email'])
 	slot_max = {x:len(y) for (x,y) in candidate_guestlist.items()}
-	slot_max ={dateutil.parser.parse(x):y for (x,y) in slot_max.items()}
-	slot_max = collections.OrderedDict(sorted(slot_max.items()))
-	slot_max = {my_date.strftime('%Y-%m-%d'):y for (my_date,y) in slot_max.items()}
+	# slot_max ={dateutil.parser.parse(x):y for (x,y) in slot_max.items()}
+	# slot_max = collections.OrderedDict(sorted(slot_max.items()))
+	# slot_max = {my_date.strftime('%Y-%m-%d'):y for (my_date,y) in slot_max.items()}
 	best_date = max(slot_max, key=slot_max.get)
 	attendees = candidate_guestlist[best_date]
 	output =           {
@@ -104,13 +110,16 @@ if __name__ == "__main__":
 	response = get_req(params)
 
 	countries = split_partners_into_countries(response.json())
+
 	result = []
 	for country in countries.values():
-		result.append(find_consensus_dates(country))
+		country_with_client_dates = extract_candidate_dates(country)
+		result.append(find_consensus_dates(country_with_client_dates))
 	result = json.dumps({"countries":result})
-	# response = post_req(result)
-
+	print(result)
+	response = post_req(result)
+	print(response)
 	# print(countries)
 	# print(response.json())
-	pdb.set_trace()
+	# pdb.set_trace()
 	# print(response.text)
